@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,16 +16,33 @@ type BoardgameAtlas struct {
 	clientId string
 }
 
+// Game
+type Game struct {
+	Id            string `json:"id"`
+	Name          string `json:"name"`
+	Price         string `json:"price"`
+	YearPublished uint   `json:"year_published"`
+	Description   string `json:"description"`
+	Url           string `json:"official_url"`
+	ImageUrl      string `json:"image_url"`
+	RulesUrl      string `json:"rules_url"`
+}
+type SearchResult struct {
+	Games []Game `json:"games"`
+	Count uint   `json:"count"`
+}
+
 // "Method" in BoardgameAtlas
 // Pass a BGA to the Search function (receiver), Can also pass a *BGA
-func (b BoardgameAtlas) Search(ctx context.Context, query string, limit uint, skip uint) error {
+// The result is a pointer to SearchResult so that we can return nil if error
+func (b BoardgameAtlas) Search(ctx context.Context, query string, limit uint, skip uint) (*SearchResult, error) {
 
 	// Create HTTP Client
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, SEARCH_URL, nil)
 	// Check if there is any error
 	if nil != err {
 		// return an error object
-		return fmt.Errorf("cannot create HTTP client: %v", err)
+		return nil, fmt.Errorf("cannot create HTTP client: %v", err)
 	}
 
 	// Get the query string object
@@ -37,9 +55,29 @@ func (b BoardgameAtlas) Search(ctx context.Context, query string, limit uint, sk
 	// Encode the query params, add it back to the request
 	req.URL.RawQuery = qs.Encode()
 
-	fmt.Printf("URL = %s\n", req.URL.String())
+	//fmt.Printf("URL = %s\n", req.URL.String())
 
-	return nil
+	// Make the call
+	resp, err := http.DefaultClient.Do(req)
+	// Check if there is any error
+	if nil != err {
+		return nil, fmt.Errorf("cannot create HTTP client for invocation: %v", err)
+	}
+
+	// HTTP status code >= 400 is error
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("error HTTP status: %s", resp.Status)
+	}
+
+	// No more errors
+
+	var result SearchResult
+	// Deserialize the JSON payload to struct
+	if err := json.NewDecoder(resp.Body).Decode(&result); nil != err { // this err only exists inside the if statement
+		return nil, fmt.Errorf("cannot deserialize JSON payload: %v", err)
+	}
+
+	return &result, nil
 }
 
 // New functions as a constructor

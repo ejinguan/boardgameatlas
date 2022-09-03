@@ -36,10 +36,21 @@ func main() {
 
 	fmt.Printf("query=%s, clientId=%s, skip=%d, limit=%d\n", *query, *clientId, *skip, *limit)
 
-	// Instantiate a BoardgameAtlas struct
+	// Instantiate a BoardgameAtlas struct client
 	bga := api.New(*clientId)
 
-	bga.Search(context.Background(), *query, *limit, *skip)
+	// Make the invocation
+	result, err := bga.Search(context.Background(), *query, *limit, *skip)
+	if nil != err {
+		log.Fatalf("Cannot search for boardgame: %v", err)
+	}
+
+	// Looping through result games
+	for _, g := range result.Games {
+		fmt.Printf("Name: %s\n", g.Name)
+		fmt.Printf("Description: %s\n", g.Description)
+		fmt.Printf("URL: %s\n\n", g.Url)
+	}
 }
 
 func isNull(s string) bool {
