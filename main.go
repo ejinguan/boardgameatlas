@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/ejinguan/boardgameatlas/api"
+	"github.com/fatih/color"
 )
 
 // go run .
@@ -20,6 +22,7 @@ func main() {
 	clientId := flag.String("clientId", "", "My BGA Client ID")
 	skip := flag.Uint("skip", 0, "Skips the number of results provided.")
 	limit := flag.Uint("limit", 10, "Limits the number of results returned.")
+	timeout := flag.Uint("timeout", 10, "Timeout")
 
 	// Parse the command line arguments
 	flag.Parse()
@@ -40,16 +43,22 @@ func main() {
 	bga := api.New(*clientId)
 
 	// Make the invocation
-	result, err := bga.Search(context.Background(), *query, *limit, *skip)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*timeout*uint(time.Second)))
+	defer cancel() // Defer to end of program, will cancel any pending request when timeout happens or main() ends
+
+	result, err := bga.Search(ctx, *query, *limit, *skip)
 	if nil != err {
 		log.Fatalf("Cannot search for boardgame: %v", err)
 	}
 
+	// Colors
+	boldgreen := color.New(color.Bold).Add(color.FgHiGreen).SprintFunc()
+
 	// Looping through result games
-	for _, g := range result.Games {
-		fmt.Printf("Name: %s\n", g.Name)
-		fmt.Printf("Description: %s\n", g.Description)
-		fmt.Printf("URL: %s\n\n", g.Url)
+	for _, g := range result.Games { // Ignoring the iterator variable, just get the game
+		fmt.Printf("%s %s\n", boldgreen("Name"), g.Name)
+		fmt.Printf("%s: %s\n", boldgreen("Description"), g.Description)
+		fmt.Printf("%s: %s\n\n", boldgreen("URL"), g.Url)
 	}
 }
 
